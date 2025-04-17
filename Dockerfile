@@ -1,27 +1,35 @@
-FROM rust:latest
+FROM rust:1.79.0-slim
 
-# Install Solana tools
-RUN set -eux; \
-    curl -sSfL --retry 5 --retry-delay 2 https://release.solana.com/v1.19.0/install | sh 
-ENV PATH="/root/.local/share/solana/install/active_release/bin:${PATH}"
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    pkg-config \
+    libssl-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js (LTS version)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs
+# Install Solana CLI
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.18.26/install)" && \
+    export PATH="/root/.local/share/solana/install/active_release/bin:$PATH" && \
+    solana --version
 
-# Install dependencies
-RUN apt-get update && apt-get install -y curl build-essential git pkg-config libssl-dev libudev-dev
+# Install Anchor
+RUN cargo install --git https://github.com/coral-xyz/anchor avm --locked --force && \
+    avm install 0.29.0 && \
+    avm use 0.29.0
 
-# Install wasm-bindgen
-RUN rustup update stable && \
-    cargo install wasm-bindgen-cli --version 0.2.88
+# Set working directory
+WORKDIR /app
 
-# Install Anchor CLI
-RUN cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli
-
-# Set up workspace
-WORKDIR /workspace
+# Copy project files
 COPY . .
 
-# Initialize the build
-CMD ["anchor", "build"]
+# Build the program
+RUN cargo build && anchor build
+
+# Expose ports
+EXPOSE 8899 8900
+
+# Start local validator
+CMD ["solana-test-validator", "--reset"]
