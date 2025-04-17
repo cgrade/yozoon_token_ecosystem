@@ -1,0 +1,38 @@
+use anchor_lang::prelude::*;
+
+declare_id!("7giegFn7Wy4McS1eKr1cpjhpE9TibEywydG57PSao9bM");
+
+#[program]
+pub mod yozoon {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        config.authority = ctx.accounts.authority.key();
+        config.bump = *ctx.bumps.get("config").unwrap();
+        Ok(())
+    }
+}
+
+#[account]
+pub struct Config {
+    pub authority: Pubkey,
+    pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + 32 + 1, // discriminator + authority + bump
+        seeds = [b"config"],
+        bump
+    )]
+    pub config: Account<'info, Config>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+}

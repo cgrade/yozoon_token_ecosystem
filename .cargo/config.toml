@@ -1,0 +1,5 @@
+[target.bpfel-unknown-unknown]
+linker = "solana-bpf-program-rust"
+
+[build]
+target = "bpfel-unknown-unknown"
