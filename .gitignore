@@ -1,7 +1,16 @@
-.anchor
-.DS_Store
-target
+# Rust
+/target/
 **/*.rs.bk
+Cargo.lock
+
+# Solana
+.DS_Store
 node_modules
 test-ledger
 .yarn
+.env
+.anchor
+dist
+.idea
+.vscode
+*.log
