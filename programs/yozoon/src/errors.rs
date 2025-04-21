@@ -24,4 +24,16 @@ pub enum YozoonError {
     FeeTooHigh,
     #[msg("Insufficient reserve")]
     InsufficientReserve,
+    #[msg("Migration threshold not reached")]
+    MigrationThresholdNotReached,
+    #[msg("Protocol already migrated to Raydium")]
+    AlreadyMigrated,
+    #[msg("Failed to create Raydium pool")]
+    RaydiumPoolCreationFailed,
+    #[msg("Failed to create NFT fee key")]
+    NftFeeKeyCreationFailed,
+    #[msg("Invalid SOL amount for migration")]
+    InvalidMigrationAmount,
+    #[msg("Raydium liquidity lock failed")]
+    LiquidityLockFailed,
 } 

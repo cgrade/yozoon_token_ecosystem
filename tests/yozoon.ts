@@ -13,7 +13,7 @@ describe("Yozoon", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   // @ts-ignore - Using any type as a workaround for missing generated types
-  const program = anchor.workspace.Yozoon as Program<Yozoon>;
+const program = anchor.workspace.Yozoon as Program<Yozoon>;
   
   // Main accounts
   const admin = provider.wallet.publicKey;
@@ -170,7 +170,7 @@ describe("Yozoon", () => {
       })
       .signers([user])
       .rpc();
-    
+      
     // Verify the referral account
     const referralAccount = await program.account.referral.fetch(userReferralPda);
     console.log("Referral set up for user", user.publicKey.toBase58());
@@ -197,7 +197,7 @@ describe("Yozoon", () => {
     
     await program.methods
       .airdropTokens(airdropAmount)
-      .accounts({
+        .accounts({
         config: configPda,
         admin,
         airdropLedger: airdropLedgerPda,
@@ -240,7 +240,7 @@ describe("Yozoon", () => {
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      
+        
       // Verify the bonding curve account
       const bondingCurveAccount = await program.account.bondingCurve.fetch(bondingCurvePda);
       console.log("Bonding curve initialized with", bondingCurveAccount.pricePoints.length, "price points");
@@ -296,7 +296,7 @@ describe("Yozoon", () => {
         })
         .signers([user])
         .rpc();
-      
+        
       // Verify the results
       const bondingCurveAccount = await program.account.bondingCurve.fetch(bondingCurvePda);
       console.log("Tokens sold:", bondingCurveAccount.totalSoldSupply.toString());

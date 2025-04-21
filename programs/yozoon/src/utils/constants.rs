@@ -1,4 +1,5 @@
 // Constants for the Yozoon token ecosystem
+use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 
 /// Total token supply (1e18 tokens)
 pub const TOTAL_SUPPLY: u64 = 1_000_000_000_000_000_000;
