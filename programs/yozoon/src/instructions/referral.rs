@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::errors::ErrorCode;
+use crate::errors::YozoonError;
 use crate::events::*;
 use crate::instructions::contexts::*;
 use crate::utils::constants::*;
@@ -9,33 +9,27 @@ pub fn set_referral(
     ctx: Context<SetReferral>,
     referrer: Pubkey
 ) -> Result<()> {
-    // Prevent self-referral
+    // Check if user is trying to refer themselves
     require!(
         ctx.accounts.user.key() != referrer,
-        ErrorCode::SelfReferral
-    );
-    
-    // Verify referrer matches account provided
-    require!(
-        ctx.accounts.referrer.key() == referrer,
-        ErrorCode::InvalidParameter
+        YozoonError::SelfReferral
     );
     
     let referral = &mut ctx.accounts.referral;
     
-    // Store referrer and fee information
+    // Update referral
     referral.referrer = referrer;
     referral.fee_percentage = DEFAULT_REFERRAL_FEE;
     referral.bump = *ctx.bumps.get("referral").unwrap();
     
-    // Emit event for frontend tracking
-    emit!(ReferralCreatedEvent {
+    // Emit event
+    emit!(ReferralSetEvent {
         user: ctx.accounts.user.key(),
         referrer,
-        fee_percentage: DEFAULT_REFERRAL_FEE,
+        timestamp: Clock::get()?.unix_timestamp,
     });
     
-    msg!("Referral set for {} to referrer {}", ctx.accounts.user.key(), referrer);
+    msg!("Referral set for {} to {}", ctx.accounts.user.key(), referrer);
     Ok(())
 }
 
@@ -44,23 +38,27 @@ pub fn update_referral_fee(
     ctx: Context<UpdateReferralFee>,
     new_fee_percentage: u64
 ) -> Result<()> {
-    // Validate fee percentage is within limits
+    let referral = &mut ctx.accounts.referral;
+    let old_fee = referral.fee_percentage;
+    
+    // Check if new fee is too high
     require!(
         new_fee_percentage <= MAX_REFERRAL_FEE,
-        ErrorCode::FeeTooHigh
+        YozoonError::FeeTooHigh
     );
     
-    let referral = &mut ctx.accounts.referral;
-    
-    // Update fee percentage
+    // Update fee
     referral.fee_percentage = new_fee_percentage;
     
-    // Emit event for frontend tracking
+    // Emit event
     emit!(ReferralFeeUpdatedEvent {
-        user: ctx.accounts.user.key(),
-        fee_percentage: new_fee_percentage,
+        user: ctx.accounts.referral.key(),
+        old_fee,
+        new_fee: new_fee_percentage,
+        timestamp: Clock::get()?.unix_timestamp,
     });
     
-    msg!("Referral fee updated for {} to {}bps", ctx.accounts.user.key(), new_fee_percentage);
+    msg!("Referral fee updated for {} to {}bps", ctx.accounts.referral.key(), new_fee_percentage);
+    
     Ok(())
 }

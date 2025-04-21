@@ -1,0 +1,145 @@
+use anchor_lang::prelude::*;
+
+declare_id!("Yozoon1111111111111111111111111111111111111");
+
+pub mod errors;
+pub mod events;
+pub mod state;
+pub mod utils;
+pub mod contexts;
+pub mod admin;
+pub mod airdrop;
+pub mod bonding_curve;
+pub mod referral;
+pub mod migration;
+
+// We no longer need the instructions re-export module since we've moved everything to the root
+// This ensures that all context types are in the same module scope as the program
+
+#[program]
+pub mod yozoon {
+    use super::*;
+
+    // Admin instructions
+    pub fn initialize_mint(ctx: Context<contexts::InitializeMint>) -> Result<()> {
+        // Initialize configuration
+        let config = &mut ctx.accounts.config;
+        config.admin = ctx.accounts.admin.key();
+        config.pending_admin = None;
+        config.bump = *ctx.bumps.get("config").unwrap();
+        config.paused = false;
+        config.total_supply = 0;
+        config.total_value = 0;
+        
+        msg!("Initialized with admin: {}", config.admin);
+        
+        Ok(())
+    }
+    
+    pub fn transfer_admin(ctx: Context<contexts::AdminAction>, new_admin: Pubkey) -> Result<()> {
+        // Set pending admin
+        let config = &mut ctx.accounts.config;
+        config.pending_admin = Some(new_admin);
+        
+        msg!("Admin transfer initiated to: {}", new_admin);
+        
+        Ok(())
+    }
+
+    pub fn accept_admin(ctx: Context<contexts::AcceptAdmin>) -> Result<()> {
+        admin::accept_admin(ctx)
+    }
+
+    pub fn set_pause_state(ctx: Context<contexts::AdminAction>, paused: bool) -> Result<()> {
+        admin::set_pause_state(ctx, paused)
+    }
+
+    // Bonding curve instructions
+    pub fn initialize_bonding_curve(ctx: Context<contexts::InitializeBondingCurve>, price_points: Vec<u64>) -> Result<()> {
+        bonding_curve::initialize_bonding_curve(ctx, price_points)
+    }
+
+    pub fn buy_tokens(ctx: Context<contexts::BuyTokens>, sol_amount: u64) -> Result<()> {
+        bonding_curve::buy_tokens(ctx, sol_amount)
+    }
+
+    pub fn calculate_current_price(ctx: Context<contexts::GetCurrentPrice>) -> Result<u64> {
+        bonding_curve::calculate_current_price(ctx)
+    }
+
+    pub fn calculate_tokens_for_sol(ctx: Context<contexts::CalculateTokens>, sol_amount: u64) -> Result<u64> {
+        bonding_curve::calculate_tokens_for_sol(ctx, sol_amount)
+    }
+
+    pub fn sell_tokens(ctx: Context<contexts::SellTokens>, token_amount: u64) -> Result<()> {
+        bonding_curve::sell_tokens(ctx, token_amount)
+    }
+
+    // Referral instructions
+    pub fn set_referral(ctx: Context<contexts::SetReferral>, referrer: Pubkey) -> Result<()> {
+        referral::set_referral(ctx, referrer)
+    }
+
+    pub fn update_referral_fee(ctx: Context<contexts::UpdateReferralFee>, new_fee_percentage: u64) -> Result<()> {
+        referral::update_referral_fee(ctx, new_fee_percentage)
+    }
+
+    // Airdrop instructions
+    pub fn airdrop_tokens(ctx: Context<contexts::AirdropTokens>, amount: u64) -> Result<()> {
+        airdrop::airdrop_tokens(ctx, amount)
+    }
+
+    // Migration instructions
+    pub fn migrate_to_raydium(ctx: Context<migration::MigrateToRaydium>) -> Result<()> {
+        migration::migrate_to_raydium(ctx)
+    }
+}
+
+// Account contexts
+#[derive(Accounts)]
+pub struct InitializeMint<'info> {
+    /// Configuration account (PDA)
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + state::Config::LEN,
+        seeds = [b"config"],
+        bump
+    )]
+    pub config: Account<'info, state::Config>,
+    
+    /// Token mint account
+    #[account(
+        init,
+        payer = admin,
+        mint::decimals = 9,
+        mint::authority = config,
+    )]
+    pub mint: Account<'info, anchor_spl::token::Mint>,
+    
+    /// Admin account (pays rent and becomes initial admin)
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    
+    /// System program
+    pub system_program: Program<'info, System>,
+    
+    /// Token program
+    pub token_program: Program<'info, anchor_spl::token::Token>,
+    
+    /// Rent sysvar
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct AdminAction<'info> {
+    /// Configuration account (PDA)
+    #[account(
+        mut,
+        has_one = admin @ errors::YozoonError::Unauthorized
+    )]
+    pub config: Account<'info, state::Config>,
+    
+    /// Admin account (pays rent and becomes initial admin)
+    pub admin: Signer<'info>,
+}

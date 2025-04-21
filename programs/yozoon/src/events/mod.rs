@@ -52,15 +52,6 @@ pub struct ReferralCreatedEvent {
     pub fee_percentage: u64,
 }
 
-/// Event emitted when a referral fee is updated
-#[event]
-pub struct ReferralFeeUpdatedEvent {
-    /// User account
-    pub user: Pubkey,
-    /// New fee percentage in basis points
-    pub fee_percentage: u64,
-}
-
 /// Event emitted when tokens are airdropped
 #[event]
 pub struct AirdropEvent {
@@ -166,5 +157,14 @@ pub struct MigrationEvent {
     pub total_sol: u64,
     pub total_usd: u64,
     pub total_supply: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct TokenSaleEvent {
+    pub user: Pubkey,
+    pub token_amount: u64,
+    pub sol_amount: u64,
+    pub price: u64,
     pub timestamp: i64,
 }

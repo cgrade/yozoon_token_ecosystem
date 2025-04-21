@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use crate::errors::YozoonError;
 use crate::state::*;
-use crate::utils::constants::*;
 use crate::utils::constants::seeds::*;
 
 /// Accounts required for initializing the token mint
@@ -11,7 +11,7 @@ pub struct InitializeMint<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + Config::SPACE,
+        space = 8 + Config::LEN,
         seeds = [b"config"],
         bump
     )]
@@ -44,27 +44,18 @@ pub struct InitializeMint<'info> {
 #[derive(Accounts)]
 pub struct InitializeBondingCurve<'info> {
     /// Configuration account (PDA)
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    
-    /// Configuration account (PDA)
-    #[account(
-        mut,
-        seeds = [b"config"],
-        bump = config.bump,
-        has_one = admin @ YozoonError::Unauthorized
-    )]
-    pub config: Account<'info, Config>,
-    
-    /// Bonding curve account (PDA)
     #[account(
         init,
         payer = admin,
-        space = 8 + BondingCurve::SPACE,
+        space = 8 + BondingCurve::LEN,
         seeds = [b"bonding_curve"],
         bump
     )]
     pub bonding_curve: Account<'info, BondingCurve>,
+    
+    /// Configuration account (PDA)
+    #[account(mut)]
+    pub admin: Signer<'info>,
     
     /// System program
     pub system_program: Program<'info, System>,
@@ -105,6 +96,18 @@ pub struct BuyTokens<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
     
+    /// Treasury account
+    #[account(mut)]
+    pub treasury: SystemAccount<'info>,
+    
+    /// Referral account (optional)
+    #[account(mut)]
+    pub referral: Option<Account<'info, Referral>>,
+    
+    /// Referrer account (optional)
+    #[account(mut)]
+    pub referrer: Option<SystemAccount<'info>>,
+    
     /// System program
     pub system_program: Program<'info, System>,
     
@@ -117,9 +120,9 @@ pub struct BuyTokens<'info> {
 pub struct SetReferral<'info> {
     /// User's referral account (PDA)
     #[account(
-        init_if_needed,
+        init,
         payer = user,
-        space = 8 + Referral::SPACE,
+        space = 8 + Referral::LEN,
         seeds = [b"referral", user.key().as_ref()],
         bump
     )]
@@ -137,38 +140,36 @@ pub struct SetReferral<'info> {
 #[derive(Accounts)]
 pub struct UpdateReferralFee<'info> {
     /// Configuration account (PDA) to validate admin
-    #[account(mut)]
-    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = config.admin == admin.key() @ YozoonError::Unauthorized
+    )]
+    pub referral: Account<'info, Referral>,
     
     /// Configuration account (PDA)
     #[account(
         mut,
-        seeds = [b"config"],
-        bump = config.bump,
-        has_one = admin @ YozoonError::Unauthorized
+        constraint = config.admin == admin.key() @ YozoonError::Unauthorized
     )]
     pub config: Account<'info, Config>,
     
-    /// User's referral account (PDA)
-    #[account(mut)]
-    pub referral: Account<'info, Referral>,
+    /// Admin account (pays rent and becomes initial admin)
+    pub admin: Signer<'info>,
 }
 
 /// Accounts required for airdropping tokens
 #[derive(Accounts)]
 pub struct AirdropTokens<'info> {
     /// Configuration account (PDA)
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    
-    /// Configuration account (PDA)
     #[account(
         mut,
-        seeds = [b"config"],
-        bump = config.bump,
         has_one = admin @ YozoonError::Unauthorized
     )]
     pub config: Account<'info, Config>,
+    
+    /// Configuration account (PDA)
+    #[account(mut)]
+    pub admin: Signer<'info>,
     
     /// Airdrop ledger account (PDA)
     #[account(
@@ -195,67 +196,32 @@ pub struct AirdropTokens<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Accounts required for migrating to Raydium
-#[derive(Accounts)]
-pub struct MigrateToRaydium<'info> {
-    /// Configuration account (PDA) to validate admin
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    
-    /// Configuration account (PDA)
-    #[account(
-        mut,
-        seeds = [b"config"],
-        bump = config.bump,
-        has_one = admin @ YozoonError::Unauthorized
-    )]
-    pub config: Account<'info, Config>,
-    
-    /// Bonding curve account (PDA)
-    #[account(
-        mut,
-        seeds = [b"bonding_curve"],
-        bump = bonding_curve.bump
-    )]
-    pub bonding_curve: Account<'info, BondingCurve>,
-    
-    /// Pyth price account for SOL/USD
-    /// CHECK: Pyth account is validated in the instruction
-    pub pyth_price_account: AccountInfo<'info>,
-}
-
 /// Accounts required for admin actions
 #[derive(Accounts)]
 pub struct AdminAction<'info> {
     /// Configuration account (PDA)
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    
-    /// Configuration account (PDA)
     #[account(
         mut,
-        seeds = [b"config"],
-        bump = config.bump,
         has_one = admin @ YozoonError::Unauthorized
     )]
     pub config: Account<'info, Config>,
+    
+    /// Admin account (pays rent and becomes initial admin)
+    pub admin: Signer<'info>,
 }
 
 /// Accounts required for accepting admin role
 #[derive(Accounts)]
 pub struct AcceptAdmin<'info> {
     /// Configuration account (PDA)
-    #[account(mut)]
-    pub pending_admin: Signer<'info>,
-    
-    /// Configuration account (PDA)
     #[account(
         mut,
-        seeds = [b"config"],
-        bump = config.bump,
         constraint = config.pending_admin == Some(pending_admin.key()) @ YozoonError::Unauthorized
     )]
     pub config: Account<'info, Config>,
+    
+    /// Pending admin account (pays rent and becomes admin)
+    pub pending_admin: Signer<'info>,
 }
 
 /// Accounts required for viewing current price
@@ -278,4 +244,21 @@ pub struct CalculateTokens<'info> {
         bump = bonding_curve.bump
     )]
     pub bonding_curve: Account<'info, BondingCurve>,
+}
+
+/// Accounts required for selling tokens
+#[derive(Accounts)]
+pub struct SellTokens<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+    #[account(mut)]
+    pub seller_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub bonding_curve: Account<'info, BondingCurve>,
+    #[account(mut)]
+    pub reserve: SystemAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }

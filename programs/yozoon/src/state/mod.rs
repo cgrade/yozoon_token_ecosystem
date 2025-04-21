@@ -20,16 +20,24 @@ pub struct Config {
     
     /// Pending admin for ownership transfer
     pub pending_admin: Option<Pubkey>,
+    
+    /// Total value of the project
+    pub total_value: u64,
+    
+    /// Total supply of the project
+    pub total_supply: u64,
 }
 
 impl Config {
-    pub const SPACE: usize = 32 + // admin
+    pub const LEN: usize = 32 + // admin
                             32 + // mint
                             1 + // bump
                             1 + // paused
                             32 + // treasury
                             1 + // option tag
-                            32; // pending_admin
+                            32 + // pending_admin
+                            8 + // total_value
+                            8; // total_supply
 }
 
 /// Bonding curve state account storing price points and supply data
@@ -52,11 +60,10 @@ pub struct BondingCurve {
 }
 
 impl BondingCurve {
-    pub const MAX_PRICE_POINTS: usize = 100;
-    pub const SPACE: usize = 8 + // total_sol_raised
-                            8 + // total_sold_supply
+    pub const LEN: usize = 8 + // total_sold_supply
+                            8 + // total_sol_raised
                             4 + // vec length
-                            8 * Self::MAX_PRICE_POINTS + // price points
+                            (32 * 10) + // price_points (max 10 points)
                             1 + // bump
                             1; // is_migrated
 }
@@ -75,7 +82,7 @@ pub struct Referral {
 }
 
 impl Referral {
-    pub const SPACE: usize = 32 + // referrer
+    pub const LEN: usize = 32 + // referrer
                             8 + // fee_percentage
                             1; // bump
 }
@@ -88,4 +95,9 @@ pub struct AirdropLedger {
     
     /// Bump seed for PDA
     pub bump: u8,
+}
+
+impl AirdropLedger {
+    pub const LEN: usize = 8 + // total_airdropped
+                            1; // bump
 }

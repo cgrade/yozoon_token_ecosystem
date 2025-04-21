@@ -5,9 +5,6 @@ pub mod contexts;
 pub mod migration;
 pub mod referral;
 
-pub use admin::*;
-pub use airdrop::*;
-pub use bonding_curve::*;
+// Re-export all context types at the instructions module level
 pub use contexts::*;
-pub use migration::*;
-pub use referral::*;
+pub use migration::MigrateToRaydium;

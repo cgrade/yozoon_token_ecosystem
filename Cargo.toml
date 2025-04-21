@@ -6,10 +6,11 @@ resolver = "2"
 [workspace.dependencies]
 solana-program = "=1.18.26"
 solana-sdk = "=1.18.26"
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
+anchor-lang = "0.26.0"
+anchor-spl = "0.26.0"
 pyth-sdk-solana = "0.10.0"
 spl-token = "4.0.0"
+proc-macro2 = "1.0.56"
 
 [profile.release]
 overflow-checks = true

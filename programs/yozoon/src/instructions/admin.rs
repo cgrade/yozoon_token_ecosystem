@@ -1,10 +1,13 @@
 use anchor_lang::prelude::*;
-use crate::errors::ErrorCode;
+use crate::errors::YozoonError;
 use crate::events::*;
 use crate::instructions::contexts::*;
 
 /// Initialize the token mint and configuration account
 pub fn initialize_mint(ctx: Context<InitializeMint>) -> Result<()> {
+    // Store treasury value before mutable borrow
+    let treasury = ctx.accounts.config.treasury;
+    
     let config = &mut ctx.accounts.config;
     
     // Set up the config account
@@ -12,7 +15,7 @@ pub fn initialize_mint(ctx: Context<InitializeMint>) -> Result<()> {
     config.mint = ctx.accounts.mint.key();
     config.bump = *ctx.bumps.get("config").unwrap();
     config.paused = false;
-    config.treasury = ctx.accounts.treasury.key();
+    config.treasury = treasury;
     config.pending_admin = None;
     
     msg!("Yozoon token initialized with admin: {}", config.admin);
@@ -24,7 +27,7 @@ pub fn transfer_admin(ctx: Context<AdminAction>, new_admin: Pubkey) -> Result<()
     let config = &mut ctx.accounts.config;
     
     // Verify not setting to the same admin
-    require!(config.admin != new_admin, ErrorCode::InvalidParameter);
+    require!(config.admin != new_admin, YozoonError::InvalidParameter);
     
     // Set pending admin
     config.pending_admin = Some(new_admin);
@@ -43,14 +46,8 @@ pub fn transfer_admin(ctx: Context<AdminAction>, new_admin: Pubkey) -> Result<()
 pub fn accept_admin(ctx: Context<AcceptAdmin>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     
-    // Verify pending admin
-    require!(
-        config.pending_admin == Some(ctx.accounts.new_admin.key()),
-        ErrorCode::Unauthorized
-    );
-    
     // Update admin
-    config.admin = ctx.accounts.new_admin.key();
+    config.admin = ctx.accounts.pending_admin.key();
     config.pending_admin = None;
     
     // Emit event for frontend tracking
